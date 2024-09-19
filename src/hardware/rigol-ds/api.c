@@ -229,7 +229,7 @@ static const struct rigol_ds_series supported_series[] = {
 	[DHO1000] = {VENDOR(RIGOL), "DHO1000", PROTOCOL_V6, FORMAT_IEEE488_2,
 		{500, 1}, {500, 1000000}, 10, 1000, 0},
 	[DHO4000] = {VENDOR(RIGOL), "DHO4000", PROTOCOL_V6, FORMAT_IEEE488_2,
-		{500, 1}, {100, 1000000}, 10, 1000, 0},
+		{500, 1}, {100, 1000000}, 10, 1000, 100000000},
 };
 
 #define SERIES(x) &supported_series[x]
@@ -1048,8 +1048,8 @@ static int dev_acquisition_start(const struct sr_dev_inst *sdi)
 			/* DHO scopes need to be in UltraAcquire mode for segmented acquisoton */
 			/* This command is not working as for firmware version v00.01.02.00.02 of 2023/12/28
 			   the scope has to be put manually in UltraAcquire mode for segmented acquisition to work */
-			//if (rigol_ds_config_set(sdi, ":ACQ:TYPE ULTR") != SR_OK)
-			//	return SR_ERR; */
+			if (rigol_ds_config_set(sdi, ":ACQ:TYPE ULTR") != SR_OK)
+				return SR_ERR;
 
 			int frames = 0;
 			//if (sr_scpi_get_int(sdi->conn, ":REC:FRAM?", &frames) != SR_OK)
@@ -1128,6 +1128,7 @@ static int dev_acquisition_start(const struct sr_dev_inst *sdi)
 			sr_err("Cannot get samplerate (zero XINC value).");
 			return SR_ERR;
 		}
+		sr_err("Got xinc %d", xinc);
 		devc->sample_rate = 1. / xinc;
 	}
 

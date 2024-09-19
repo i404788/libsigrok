@@ -434,8 +434,8 @@ SR_PRIV int rigol_ds_capture_start(const struct sr_dev_inst *sdi)
 					 * segmented acquisition does not work over multiple data blocks : DATA? command on a frame
 					 * portion results in a header, declaring an empty content, of the form '#9000000000'. */
 					if(devc->data_source == DATA_SOURCE_SEGMENTED && devc->analog_frame_size > ACQ_BLOCK_SIZE) {
-						sr_err("Data source 'Segmented' not supported for memory depth > %d points.",ACQ_BLOCK_SIZE);
-						return SR_ERR_NA;
+						sr_err("Data source 'Segmented' might not be supported for memory depth > %d points.",ACQ_BLOCK_SIZE);
+						// return SR_ERR_NA;
 					}
 
 				}
@@ -526,7 +526,7 @@ SR_PRIV int rigol_ds_channel_start(const struct sr_dev_inst *sdi)
 
 		if (first_frame && rigol_ds_config_set(sdi,
 					devc->data_source == DATA_SOURCE_LIVE ?
-						":WAV:MODE NORM" :":WAV:MODE RAW") != SR_OK)
+						":WAV:MODE NORM" : ":WAV:MODE MAX") != SR_OK)
 			return SR_ERR;
 
 		if ((devc->data_source != DATA_SOURCE_LIVE) && (devc->model->series->protocol != PROTOCOL_V6)) {
@@ -750,6 +750,13 @@ SR_PRIV int rigol_ds_receive(int fd, int revents, void *cb_data)
 	}
 
 	sr_dbg("Received %d bytes.", len);
+
+	if (len == 1 && *devc->buffer == 128) {
+		sr_dbg("Got singular byte: %d", *devc->buffer);
+		devc->channel_entry = devc->channel_entry->next;
+		rigol_ds_channel_start(sdi);
+		return true;
+	}
 
 	devc->num_block_read += len;
 

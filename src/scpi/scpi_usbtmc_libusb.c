@@ -26,7 +26,8 @@
 
 #define LOG_PREFIX "scpi_usbtmc"
 
-#define MAX_TRANSFER_LENGTH 2048
+// #define MAX_TRANSFER_LENGTH 2048
+#define MAX_TRANSFER_LENGTH 2048 * 64
 #define TRANSFER_TIMEOUT 1000
 
 struct scpi_usbtmc_libusb {
@@ -584,6 +585,7 @@ static int scpi_usbtmc_bulkin_continue(struct scpi_usbtmc_libusb *uscpi,
 		return SR_ERR;
 	}
 
+	sr_dbg("Supposedly transferred %d", transferred);
 	uscpi->response_length = MIN(transferred, uscpi->remaining_length);
 	uscpi->response_bytes_read = 0;
 	uscpi->remaining_length -= uscpi->response_length;
@@ -629,16 +631,23 @@ static int scpi_usbtmc_libusb_read_data(void *priv, char *buf, int maxlen)
 	if (uscpi->response_bytes_read >= uscpi->response_length) {
 		if (uscpi->remaining_length > 0) {
 			if (scpi_usbtmc_bulkin_continue(uscpi, uscpi->buffer,
-			                                sizeof(uscpi->buffer)) <= 0)
+			                                sizeof(uscpi->buffer)) < 0){
+				sr_dbg("Failed usbtmc bulkin continue %d", uscpi->remaining_length);
 				return SR_ERR;
+			}
 		} else {
-			if (uscpi->bulkin_attributes & EOM)
+			if (uscpi->bulkin_attributes & EOM){
+				sr_dbg("Failed EOM flag");
 				return SR_ERR;
-			if (scpi_usbtmc_libusb_read_begin(uscpi) < 0)
+			}
+			if (scpi_usbtmc_libusb_read_begin(uscpi) < 0){
+				sr_dbg("Failed read begin");
 				return SR_ERR;
+			}
 		}
 	}
 
+	sr_dbg("Read: %d %d from max %d", uscpi->response_length, uscpi->response_bytes_read, maxlen);
 	read_length = MIN(uscpi->response_length - uscpi->response_bytes_read, maxlen);
 
 	memcpy(buf, uscpi->buffer + uscpi->response_bytes_read, read_length);
